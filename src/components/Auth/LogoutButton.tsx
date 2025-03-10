@@ -6,7 +6,10 @@ export default function LogoutButton() {
   const router = useRouter();
 
   const handleLogout = () => {
+    // Clear authentication
     clearAuth();
+    
+    // Redirect to login page
     router.push("/");
   };
 

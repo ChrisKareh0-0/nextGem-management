@@ -9,6 +9,24 @@ export function middleware(request: NextRequest) {
   response.headers.set('Cache-Control', 'no-store, max-age=0');
   response.headers.set('X-Next-Dynamic', '1');
   
+  // Get the pathname from the URL
+  const { pathname } = request.nextUrl;
+  
+  // Skip authentication check for the login page and public assets
+  if (
+    pathname === '/' || 
+    pathname.startsWith('/_next') || 
+    pathname.startsWith('/api') || 
+    pathname.startsWith('/images') || 
+    pathname.startsWith('/icons') || 
+    pathname === '/favicon.ico'
+  ) {
+    return response;
+  }
+  
+  // For client-side authentication, we'll rely on the AuthCheck component
+  // This middleware just ensures pages are dynamic and not cached
+  
   return response;
 }
 

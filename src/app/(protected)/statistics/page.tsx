@@ -5,15 +5,11 @@ import { createTimeFrameExtractor } from "@/utils/timeframe-extractor";
 import LogoutButton from "@/components/Auth/LogoutButton";
 import { getAuth } from "@/utils/auth";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
-type PropsType = {
-  searchParams: {
-    selected_time_frame?: string;
-  };
-};
-
-export default function StatisticsPage({ searchParams }: PropsType) {
-  const { selected_time_frame } = searchParams;
+export default function StatisticsPage() {
+  const searchParams = useSearchParams();
+  const selected_time_frame = searchParams?.get('selected_time_frame') || undefined;
   const extractTimeFrame = createTimeFrameExtractor(selected_time_frame);
   const [username, setUsername] = useState<string | null>(null);
   

@@ -13,6 +13,7 @@ import type { Metadata, Viewport } from "next";
 import NextTopLoader from "nextjs-toploader";
 import type { PropsWithChildren } from "react";
 import { Providers } from "./providers";
+import ClientLayout from "./client-layout";
 
 export const metadata: Metadata = {
   title: "NextGem Management",
@@ -41,18 +42,7 @@ export default function RootLayout({ children }: PropsWithChildren) {
       <body className="dark:bg-boxdark-2 dark:text-bodydark">
         <Providers>
           <NextTopLoader showSpinner={false} />
-
-          <div className="flex min-h-screen">
-            <Sidebar />
-
-            <div className="w-full bg-gray-2 dark:bg-[#020d1a]">
-              <Header />
-
-              <main className="isolate mx-auto w-full max-w-screen-2xl overflow-hidden p-4 md:p-6 2xl:p-10">
-                {children}
-              </main>
-            </div>
-          </div>
+          <ClientLayout>{children}</ClientLayout>
         </Providers>
       </body>
     </html>

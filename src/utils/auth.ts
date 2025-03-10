@@ -7,8 +7,8 @@ interface User {
 // In a real application, you would use a secure database
 // This is just for demonstration purposes
 const USERS: User[] = [
-  { username: 'admin', password: 'admin123' },
-  { username: 'user', password: 'user123' },
+  { username: 'admin', password: 'NextGemClients123$!' }
+  
 ];
 
 export function validateCredentials(username: string, password: string): boolean {
