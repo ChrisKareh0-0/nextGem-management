@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// This middleware ensures all pages are treated as dynamic
+// This middleware ensures all pages are treated as dynamic and handles authentication
 export function middleware(request: NextRequest) {
   const response = NextResponse.next();
   
