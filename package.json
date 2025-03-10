@@ -4,13 +4,22 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node pre-build.js",
     "build": "next build",
+    "postbuild": "node build-hook.js",
     "start": "next start",
     "lint": "next lint",
-    "build:render": "node build-render.js",
+    "build:render": "node pre-build.js && node build-render.js",
     "start:render": "node start-render.js",
     "build:no-static": "NEXT_DISABLE_STATIC_GENERATION=1 next build --no-lint",
-    "create-installer": "node create-installer.js"
+    "create-installer": "node create-installer.js",
+    "build:windows": "node pre-build.js && next build && node build-hook.js",
+    "build:fix": "node pre-build.js && next build && node build-hook.js",
+    "fix:home": "node fix-home-page.js",
+    "build:home": "next build && node fix-home-page.js",
+    "fix:simple": "node fix-simple.js",
+    "build:simple": "next build && node fix-simple.js",
+    "build:deploy": "node deploy-build.js"
   },
   "dependencies": {
     "apexcharts": "^3.45.2",

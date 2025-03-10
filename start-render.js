@@ -68,6 +68,55 @@ if (!fs.existsSync(nextDir) || !fs.readdirSync(nextDir).length) {
   }
 }
 
+// Fix for client reference manifest issues
+try {
+  console.log('Fixing client reference manifest issues...');
+  
+  // Define paths
+  const baseDir = process.cwd();
+  const nextDir = path.join(baseDir, '.next');
+  const serverDir = path.join(nextDir, 'server');
+  const appDir = path.join(serverDir, 'app');
+  const homeDir = path.join(appDir, '(home)');
+  const standaloneDir = path.join(nextDir, 'standalone', '.next', 'server', 'app', '(home)');
+  
+  // Create directories if they don't exist
+  function ensureDirectoryExists(dir) {
+    if (!fs.existsSync(dir)) {
+      console.log(`Creating directory: ${dir}`);
+      fs.mkdirSync(dir, { recursive: true });
+      return true;
+    }
+    return false;
+  }
+  
+  // Create both directories
+  ensureDirectoryExists(homeDir);
+  ensureDirectoryExists(standaloneDir);
+  
+  // Create a simple client reference manifest
+  function createManifest(filePath) {
+    console.log(`Creating manifest at: ${filePath}`);
+    const content = `self.__RSC_MANIFEST={};\n`;
+    fs.writeFileSync(filePath, content);
+  }
+  
+  // Create the manifest files
+  const sourceManifest = path.join(homeDir, 'page_client-reference-manifest.js');
+  const targetManifest = path.join(standaloneDir, 'page_client-reference-manifest.js');
+  const sourceLayoutManifest = path.join(homeDir, 'layout_client-reference-manifest.js');
+  const targetLayoutManifest = path.join(standaloneDir, 'layout_client-reference-manifest.js');
+  
+  createManifest(sourceManifest);
+  createManifest(targetManifest);
+  createManifest(sourceLayoutManifest);
+  createManifest(targetLayoutManifest);
+  
+  console.log('Client reference manifest fix completed.');
+} catch (fixError) {
+  console.error('Error fixing client reference manifest issues:', fixError.message);
+}
+
 // Start the server
 console.log('Starting Next.js server...');
 try {

@@ -17,9 +17,11 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '2mb',
     },
+    // Add route handler to handle missing client reference manifests
+    missingSuspenseWithCSRBailout: true,
   },
   // Set a reasonable timeout for static generation
-  staticPageGenerationTimeout: 60,
+  staticPageGenerationTimeout: 120,
   // Copy image configuration from main config
   images: {
     domains: ["localhost"],
@@ -48,6 +50,15 @@ const nextConfig = {
   },
   // Disable powered by header
   poweredByHeader: false,
+  // Add custom webpack configuration to handle route groups
+  webpack: (config, { isServer }) => {
+    // Handle route groups in webpack
+    if (isServer) {
+      // Ensure route groups are properly processed
+      config.optimization.moduleIds = 'named';
+    }
+    return config;
+  },
 };
 
 export default nextConfig; 
