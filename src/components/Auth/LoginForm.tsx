@@ -29,8 +29,8 @@ export default function LoginForm() {
     if (validateCredentials(credentials.username, credentials.password)) {
       // Set authentication
       setAuth(credentials.username);
-      // Redirect to statistics page in the protected route group
-      router.push("/statistics");
+      // Redirect to statistics page in the dashboard
+      router.push("/dashboard/statistics");
     } else {
       setError("Invalid username or password");
       setLoading(false);
@@ -107,7 +107,11 @@ export default function LoginForm() {
         </button>
       </form>
       
-      
+      <div className="mt-4 text-center text-sm text-gray-600 dark:text-gray-400">
+        <p>Demo credentials:</p>
+        <p>Username: admin | Password: admin123</p>
+        <p>Username: user | Password: user123</p>
+      </div>
     </div>
   );
 } 

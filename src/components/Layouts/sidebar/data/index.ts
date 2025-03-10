@@ -26,7 +26,7 @@ export const NAV_DATA: NavSection[] = [
       {
         title: "Statistics",
         icon: Icons.PieChart,
-        url: "/",
+        url: "/dashboard/statistics",
         items: [],
       },
       {

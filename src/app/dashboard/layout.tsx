@@ -1,7 +1,7 @@
 "use client";
 import AuthCheck from "@/components/Auth/AuthCheck";
 
-export default function ProtectedLayout({
+export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;

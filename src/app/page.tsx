@@ -14,7 +14,7 @@ export default function LoginPage() {
     const { isAuthenticated } = getAuth();
     
     if (isAuthenticated) {
-      router.push("/statistics");
+      router.push("/dashboard/statistics");
     }
   }, [router]);
 

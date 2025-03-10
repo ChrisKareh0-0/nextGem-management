@@ -3,14 +3,18 @@ import type { NextRequest } from 'next/server';
 
 // This middleware ensures all pages are treated as dynamic and handles authentication
 export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  
+  // Redirect old routes to new routes
+  if (pathname === '/statistics') {
+    return NextResponse.redirect(new URL('/dashboard/statistics', request.url));
+  }
+  
   const response = NextResponse.next();
   
   // Add headers to disable caching and ensure dynamic rendering
   response.headers.set('Cache-Control', 'no-store, max-age=0');
   response.headers.set('X-Next-Dynamic', '1');
-  
-  // Get the pathname from the URL
-  const { pathname } = request.nextUrl;
   
   // Skip authentication check for the login page and public assets
   if (
