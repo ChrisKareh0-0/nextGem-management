@@ -9,8 +9,7 @@ const baseDir = process.cwd();
 const nextDir = path.join(baseDir, '.next');
 const serverDir = path.join(nextDir, 'server');
 const appDir = path.join(serverDir, 'app');
-const homeDir = path.join(appDir, '(home)');
-const standaloneDir = path.join(nextDir, 'standalone', '.next', 'server', 'app', '(home)');
+const standaloneDir = path.join(nextDir, 'standalone', '.next', 'server', 'app');
 
 // Create directories if they don't exist
 function ensureDirectoryExists(dir) {
@@ -22,8 +21,8 @@ function ensureDirectoryExists(dir) {
   return false;
 }
 
-// Create both directories
-ensureDirectoryExists(homeDir);
+// Create all necessary directories
+ensureDirectoryExists(appDir);
 ensureDirectoryExists(standaloneDir);
 
 // Create a simple client reference manifest
@@ -33,19 +32,16 @@ function createManifest(filePath) {
   fs.writeFileSync(filePath, content);
 }
 
-// Create the manifest files
-const sourceManifest = path.join(homeDir, 'page_client-reference-manifest.js');
-const targetManifest = path.join(standaloneDir, 'page_client-reference-manifest.js');
+// Create the manifest files for root page
+const rootSourceManifest = path.join(appDir, 'page_client-reference-manifest.js');
+const rootTargetManifest = path.join(standaloneDir, 'page_client-reference-manifest.js');
+const rootSourceLayoutManifest = path.join(appDir, 'layout_client-reference-manifest.js');
+const rootTargetLayoutManifest = path.join(standaloneDir, 'layout_client-reference-manifest.js');
 
-createManifest(sourceManifest);
-createManifest(targetManifest);
-
-// Create layout manifest files
-const sourceLayoutManifest = path.join(homeDir, 'layout_client-reference-manifest.js');
-const targetLayoutManifest = path.join(standaloneDir, 'layout_client-reference-manifest.js');
-
-createManifest(sourceLayoutManifest);
-createManifest(targetLayoutManifest);
+createManifest(rootSourceManifest);
+createManifest(rootTargetManifest);
+createManifest(rootSourceLayoutManifest);
+createManifest(rootTargetLayoutManifest);
 
 // Copy files if they exist
 function copyIfExists(source, target) {
@@ -58,23 +54,24 @@ function copyIfExists(source, target) {
 }
 
 // Copy page.js and layout.js if they exist
-const sourcePage = path.join(homeDir, 'page.js');
-const targetPage = path.join(standaloneDir, 'page.js');
-const sourceLayout = path.join(homeDir, 'layout.js');
-const targetLayout = path.join(standaloneDir, 'layout.js');
+const rootSourcePage = path.join(appDir, 'page.js');
+const rootTargetPage = path.join(standaloneDir, 'page.js');
+const rootSourceLayout = path.join(appDir, 'layout.js');
+const rootTargetLayout = path.join(standaloneDir, 'layout.js');
 
-copyIfExists(sourcePage, targetPage);
-copyIfExists(sourceLayout, targetLayout);
+// Copy root files
+copyIfExists(rootSourcePage, rootTargetPage);
+copyIfExists(rootSourceLayout, rootTargetLayout);
 
 console.log('Build hook completed successfully!');
 
 // Verify the fix
 console.log('Verifying fix...');
 const requiredFiles = [
-  sourceManifest,
-  targetManifest,
-  sourceLayoutManifest,
-  targetLayoutManifest
+  rootSourceManifest,
+  rootTargetManifest,
+  rootSourceLayoutManifest,
+  rootTargetLayoutManifest
 ];
 
 let allRequiredFilesExist = true;

@@ -6,14 +6,10 @@ console.log('Running pre-build script to prepare the environment...');
 
 // Define paths
 const baseDir = process.cwd();
-const srcDir = path.join(baseDir, 'src');
-const appDir = path.join(srcDir, 'app');
-const homeDir = path.join(appDir, '(home)');
 const nextDir = path.join(baseDir, '.next');
 const serverDir = path.join(nextDir, 'server');
-const serverAppDir = path.join(serverDir, 'app');
-const serverHomeDir = path.join(serverAppDir, '(home)');
-const standaloneDir = path.join(nextDir, 'standalone', '.next', 'server', 'app', '(home)');
+const appDir = path.join(serverDir, 'app');
+const standaloneDir = path.join(nextDir, 'standalone', '.next', 'server', 'app');
 
 // Create directories if they don't exist
 function ensureDirectoryExists(dir) {
@@ -26,7 +22,7 @@ function ensureDirectoryExists(dir) {
 }
 
 // Create all necessary directories
-ensureDirectoryExists(serverHomeDir);
+ensureDirectoryExists(appDir);
 ensureDirectoryExists(standaloneDir);
 
 // Create a simple client reference manifest
@@ -36,38 +32,37 @@ function createManifest(filePath) {
   fs.writeFileSync(filePath, content);
 }
 
-// Create the manifest files
-const sourceManifest = path.join(serverHomeDir, 'page_client-reference-manifest.js');
-const targetManifest = path.join(standaloneDir, 'page_client-reference-manifest.js');
-const sourceLayoutManifest = path.join(serverHomeDir, 'layout_client-reference-manifest.js');
-const targetLayoutManifest = path.join(standaloneDir, 'layout_client-reference-manifest.js');
-
-createManifest(sourceManifest);
-createManifest(targetManifest);
-createManifest(sourceLayoutManifest);
-createManifest(targetLayoutManifest);
-
-// Create a minimal page.js if needed
-function createMinimalPage(filePath) {
-  console.log(`Creating minimal page.js at: ${filePath}`);
+// Create a minimal root page.js if needed
+function createMinimalRootPage(filePath) {
+  console.log(`Creating minimal root page.js at: ${filePath}`);
   const content = `
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
+import { ClientPaymentsWrapper } from "./components/Charts/client-payments-wrapper";
+import { UpcomingPaymentsWrapper } from "./components/Tables/upcoming-payments-wrapper";
+import { createTimeFrameExtractor } from "./utils/timeframe-extractor";
 
 export const dynamic = 'force-dynamic';
 
-export default function HomePage({ searchParams }) {
+export default function StatisticsPage({ searchParams }) {
+  const { selected_time_frame } = searchParams;
+  const extractTimeFrame = createTimeFrameExtractor(selected_time_frame);
+  
   return _jsxs(_Fragment, {
     children: [
+      _jsx("h1", {
+        className: "mb-6 text-2xl font-semibold text-black dark:text-white",
+        children: "Statistics"
+      }),
       _jsxs("div", {
         className: "mt-4 grid grid-cols-12 gap-4 md:mt-6 md:gap-6 2xl:mt-9 2xl:gap-7.5",
         children: [
           _jsx("div", {
             className: "col-span-12 xl:col-span-7",
-            children: _jsx("div", { children: "Client Payments" })
+            children: _jsx(ClientPaymentsWrapper, {})
           }),
           _jsx("div", {
             className: "col-span-12 xl:col-span-5",
-            children: _jsx("div", { children: "Upcoming Payments" })
+            children: _jsx(UpcomingPaymentsWrapper, {})
           })
         ]
       })
@@ -78,42 +73,33 @@ export default function HomePage({ searchParams }) {
   fs.writeFileSync(filePath, content);
 }
 
-// Create a minimal layout.js if needed
-function createMinimalLayout(filePath) {
-  console.log(`Creating minimal layout.js at: ${filePath}`);
-  const content = `
-import { jsx as _jsx } from "react/jsx-runtime";
+// Create the manifest files for root page
+const rootSourceManifest = path.join(appDir, 'page_client-reference-manifest.js');
+const rootTargetManifest = path.join(standaloneDir, 'page_client-reference-manifest.js');
+const rootSourceLayoutManifest = path.join(appDir, 'layout_client-reference-manifest.js');
+const rootTargetLayoutManifest = path.join(standaloneDir, 'layout_client-reference-manifest.js');
 
-export default function HomeLayout({ children }) {
-  return _jsx("div", { 
-    className: "mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10",
-    children: children 
-  });
-}
-`;
-  fs.writeFileSync(filePath, content);
-}
+createManifest(rootSourceManifest);
+createManifest(rootTargetManifest);
+createManifest(rootSourceLayoutManifest);
+createManifest(rootTargetLayoutManifest);
 
 // Create minimal files if they don't exist
-const sourcePage = path.join(serverHomeDir, 'page.js');
-const targetPage = path.join(standaloneDir, 'page.js');
-const sourceLayout = path.join(serverHomeDir, 'layout.js');
-const targetLayout = path.join(standaloneDir, 'layout.js');
+const rootSourcePage = path.join(appDir, 'page.js');
+const rootTargetPage = path.join(standaloneDir, 'page.js');
 
-if (!fs.existsSync(sourcePage)) {
-  createMinimalPage(sourcePage);
+// Create root page
+if (!fs.existsSync(rootSourcePage)) {
+  createMinimalRootPage(rootSourcePage);
 }
 
-if (!fs.existsSync(targetPage)) {
-  createMinimalPage(targetPage);
-}
-
-if (!fs.existsSync(sourceLayout)) {
-  createMinimalLayout(sourceLayout);
-}
-
-if (!fs.existsSync(targetLayout)) {
-  createMinimalLayout(targetLayout);
+if (!fs.existsSync(rootTargetPage)) {
+  if (fs.existsSync(rootSourcePage)) {
+    console.log(`Copying page.js: ${rootSourcePage} -> ${rootTargetPage}`);
+    fs.copyFileSync(rootSourcePage, rootTargetPage);
+  } else {
+    createMinimalRootPage(rootTargetPage);
+  }
 }
 
 // Create a .next-prebuild-complete file to indicate that the pre-build script has run

@@ -24,15 +24,10 @@ export const NAV_DATA: NavSection[] = [
     label: "MAIN MENU",
     items: [
       {
-        title: "Dashboard",
-        icon: Icons.HomeIcon,
-        url: "/home",
-        // items: [
-        //   {
-        //     title: "eCommerce",
-        //     url: "/",
-        //   },
-        // ],
+        title: "Statistics",
+        icon: Icons.PieChart,
+        url: "/",
+        items: [],
       },
       {
         title: "Calendar",
