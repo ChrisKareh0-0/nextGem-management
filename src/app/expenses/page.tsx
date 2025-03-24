@@ -31,6 +31,7 @@ const expenseCategories = [
   "Travel",
   "Equipment",
   "Salaries",
+  "Subscription",
   "Other",
 ];
 
