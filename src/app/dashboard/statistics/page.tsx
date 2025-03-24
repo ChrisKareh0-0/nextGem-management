@@ -2,6 +2,7 @@
 import { ClientPaymentsWrapper } from "@/components/Charts/client-payments-wrapper";
 import { UpcomingPaymentsWrapper } from "@/components/Tables/upcoming-payments-wrapper";
 import { ExpenseStatisticsWrapper } from "@/components/Charts/expense-statistics-wrapper";
+import { FinancialSummaryWrapper } from "@/components/Charts/financial-summary-wrapper";
 import { createTimeFrameExtractor } from "@/utils/timeframe-extractor";
 import LogoutButton from "@/components/Auth/LogoutButton";
 import { getAuth } from "@/utils/auth";
@@ -33,6 +34,10 @@ export default function StatisticsPage() {
           )}
           <LogoutButton />
         </div>
+      </div>
+
+      <div className="mb-8">
+        <FinancialSummaryWrapper />
       </div>
       
       <div className="mt-4 grid grid-cols-12 gap-4 md:mt-6 md:gap-6 2xl:mt-9 2xl:gap-7.5">
