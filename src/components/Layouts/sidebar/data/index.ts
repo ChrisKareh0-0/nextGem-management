@@ -41,6 +41,12 @@ export const NAV_DATA: NavSection[] = [
         icon: Icons.ClientsIcon,
         items: [],
       },
+      {
+        title: "Expenses",
+        url: "/expenses",
+        icon: Icons.ExpensesIcon,
+        items: [],
+      },
       // {
       //   title: "Profile",
       //   url: "/profile",
@@ -85,7 +91,7 @@ export const NAV_DATA: NavSection[] = [
     ],
   },
   {
-    label: "OTHERS",
+    label: " ",
     items: []
     // items: [
       // {

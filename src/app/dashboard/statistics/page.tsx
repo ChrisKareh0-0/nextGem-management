@@ -1,6 +1,7 @@
 "use client";
 import { ClientPaymentsWrapper } from "@/components/Charts/client-payments-wrapper";
 import { UpcomingPaymentsWrapper } from "@/components/Tables/upcoming-payments-wrapper";
+import { ExpenseStatisticsWrapper } from "@/components/Charts/expense-statistics-wrapper";
 import { createTimeFrameExtractor } from "@/utils/timeframe-extractor";
 import LogoutButton from "@/components/Auth/LogoutButton";
 import { getAuth } from "@/utils/auth";
@@ -40,6 +41,9 @@ export default function StatisticsPage() {
         </div>
         <div className="col-span-12 xl:col-span-5">
           <UpcomingPaymentsWrapper />
+        </div>
+        <div className="col-span-12">
+          <ExpenseStatisticsWrapper />
         </div>
       </div>
     </div>
