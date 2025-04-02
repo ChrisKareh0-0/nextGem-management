@@ -28,13 +28,33 @@ const expenseCategories = [
   "Utilities",
   "Rent",
   "Marketing",
-  "Travel",
+  "Transportation",
   "Equipment",
   "Salaries",
   "Subscription",
   "Outsource",
+  "FreePik",
+  "Internet",
+  "Cleaning",
   "Other",
 ];
+
+// Pre-assigned prices for expense categories
+const categoryPrices: { [key: string]: number } = {
+  "Office Supplies": 0,
+  "Utilities": 0,
+  "Rent": 700,
+  "Marketing": 0,
+  "Transportation": 0,
+  "Equipment": 0,
+  "Salaries": 5800,
+  "Subscription": 0,
+  "Outsource": 0,
+  "FreePik": 18,
+  "Internet": 50,
+  "Cleaning": 60,
+  "Other": 0, // No pre-assigned price for Other category
+};
 
 interface Expense {
   _id: string;
@@ -60,7 +80,7 @@ export default function ExpensesPage() {
   const [newExpense, setNewExpense] = useState<NewExpense>({
     category: "",
     amount: "",
-    date: "",
+    date: new Date().toISOString().split('T')[0],
     note: "",
   });
   const [isLoading, setIsLoading] = useState(true);
@@ -176,6 +196,16 @@ export default function ExpensesPage() {
     setIsDialogOpen(true);
   };
 
+  const handleCategoryChange = (value: string) => {
+    const preAssignedAmount = categoryPrices[value];
+    setNewExpense({
+      category: value,
+      amount: preAssignedAmount ? preAssignedAmount.toString() : "",
+      date: new Date().toISOString().split('T')[0],
+      note: newExpense.note
+    });
+  };
+
   if (error) {
     return (
       <div className="container mx-auto p-6">
@@ -213,9 +243,7 @@ export default function ExpensesPage() {
                   <Label htmlFor="category">Category</Label>
                   <Select
                     value={newExpense.category}
-                    onValueChange={(value: string) =>
-                      setNewExpense({ ...newExpense, category: value })
-                    }
+                    onValueChange={handleCategoryChange}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select category" />
@@ -223,7 +251,7 @@ export default function ExpensesPage() {
                     <SelectContent>
                       {expenseCategories.map((category) => (
                         <SelectItem key={category} value={category}>
-                          {category}
+                          {category} {categoryPrices[category] ? `($${categoryPrices[category]})` : ''}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -236,8 +264,9 @@ export default function ExpensesPage() {
                     type="number"
                     step="0.01"
                     value={newExpense.amount}
+                    placeholder={categoryPrices[newExpense.category] ? categoryPrices[newExpense.category].toString() : ""}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                      setNewExpense({ ...newExpense, amount: e.target.value })
+                      setNewExpense(prev => ({ ...prev, amount: e.target.value }))
                     }
                   />
                 </div>

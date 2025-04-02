@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Trash2 } from "lucide-react";
 
 interface PaymentRecord {
   _id: string;
@@ -55,6 +57,24 @@ export default function ClientPaymentsPage() {
 
     fetchClientAndPayments();
   }, [clientId]);
+
+  const handleDelete = async (paymentId: string) => {
+    if (!confirm("Are you sure you want to delete this payment record?")) return;
+
+    try {
+      const response = await fetch(`/api/clients/${clientId}/payments?id=${paymentId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete payment");
+      }
+
+      setPayments(payments.filter((payment) => payment._id !== paymentId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete payment");
+    }
+  };
 
   if (loading) {
     return (
@@ -116,15 +136,26 @@ export default function ClientPaymentsPage() {
                       </p>
                     )}
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    payment.status === 'completed' 
-                      ? 'bg-green-100 text-green-800'
-                      : payment.status === 'pending'
-                      ? 'bg-yellow-100 text-yellow-800'
-                      : 'bg-red-100 text-red-800'
-                  }`}>
-                    {payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
-                  </span>
+                  <div className="flex items-center gap-4">
+                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                      payment.status === 'completed' 
+                        ? 'bg-green-100 text-green-800'
+                        : payment.status === 'pending'
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
+                    </span>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDelete(payment._id)}
+                      className="hover:bg-red-600 hover:text-white transition-colors"
+                      title="Delete payment"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </Card>
             ))}

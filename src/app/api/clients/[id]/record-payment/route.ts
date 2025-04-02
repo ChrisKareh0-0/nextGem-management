@@ -113,17 +113,68 @@ export async function PUT(
       console.log('Created new monthly income:', newMonthlyIncome);
     }
 
-    // Update total income in statistics collection
-    const statistics = await Statistics.findOne({});
-    if (statistics) {
-      statistics.totalIncome += client.quotationAmount;
-      await statistics.save();
-      console.log('Updated statistics:', statistics);
-    } else {
-      const newStatistics = await Statistics.create({
-        totalIncome: client.quotationAmount
+    // Update total income in statistics collection (only for completed payments)
+    try {
+      console.log('\n=== Starting Statistics Update ===');
+      console.log('Payment Details:', {
+        amount: payment.amount,
+        date: payment.date,
+        status: payment.status
       });
-      console.log('Created new statistics:', newStatistics);
+
+      // First, try to find existing statistics
+      let statistics = await Statistics.findOne({});
+      console.log('\nCurrent Statistics:', {
+        exists: !!statistics,
+        currentTotal: statistics?.totalIncome || 0,
+        paymentToAdd: payment.amount
+      });
+      
+      if (!statistics) {
+        // If no statistics exist, create a new one
+        console.log('\nCreating new statistics record...');
+        statistics = await Statistics.create({
+          totalIncome: payment.amount
+        });
+        console.log('New Statistics Created:', {
+          totalIncome: statistics.totalIncome,
+          createdAt: statistics.createdAt
+        });
+      } else {
+        // Update existing statistics
+        const previousTotal = statistics.totalIncome || 0;
+        statistics.totalIncome = previousTotal + payment.amount;
+        await statistics.save();
+        console.log('\nUpdated Statistics:', {
+          previousTotal,
+          paymentAdded: payment.amount,
+          newTotal: statistics.totalIncome
+        });
+      }
+      
+      // Verify the update
+      const verifiedStats = await Statistics.findOne({});
+      console.log('\nVerification:', {
+        finalTotal: verifiedStats?.totalIncome,
+        paymentCount: await Payment.countDocuments({ status: 'completed' })
+      });
+
+      // Double-check the total matches all completed payments
+      const allPayments = await Payment.find({ status: 'completed' });
+      const calculatedTotal = allPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+      console.log('\nPayment Verification:', {
+        calculatedTotal,
+        statisticsTotal: verifiedStats?.totalIncome,
+        paymentCount: allPayments.length,
+        payments: allPayments.map(p => ({
+          amount: p.amount,
+          date: p.date
+        }))
+      });
+      console.log('=== Statistics Update Complete ===\n');
+    } catch (statsError) {
+      console.error('\nError updating statistics:', statsError);
+      // Continue with the rest of the function even if statistics update fails
     }
 
     // Update client's payment due date and last payment date
@@ -131,29 +182,27 @@ export async function PUT(
       day: nextPaymentDate.getDate(),
       month: nextPaymentDate.getMonth() + 1
     };
-    client.lastPaymentDate = paymentDateObj;
+    client.lastPaymentDate = paymentDateObj.toISOString().split('T')[0]; // Format as YYYY-MM-DD string
     await client.save();
-    console.log('Updated client:', client);
+
+    // Get the final statistics after all updates
+    const finalStatistics = await Statistics.findOne({});
 
     return NextResponse.json({
       success: true,
-      data: {
-        _id: payment._id,
-        clientId: payment.clientId.toString(),
-        amount: payment.amount,
-        date: payment.date,
-        status: payment.status,
-        createdAt: payment.createdAt,
-        updatedAt: payment.updatedAt
-      }
+      message: "Payment recorded successfully",
+      payment,
+      client,
+      statistics: finalStatistics
     });
   } catch (error) {
-    console.error('Error recording payment:', error);
+    console.error("Error recording payment:", error);
     return NextResponse.json(
-      {
-        success: false,
-        error: 'Failed to record payment',
-        details: error instanceof Error ? error.message : 'Unknown error'
+      { 
+        success: false, 
+        error: "Failed to record payment",
+        details: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
       },
       { status: 500 }
     );

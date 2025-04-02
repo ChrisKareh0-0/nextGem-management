@@ -337,11 +337,12 @@ const useClients = () => {
   const recordPayment = async (clientId: string, paymentDate?: string) => {
     try {
       setLoading(true);
-      console.log('Client Hook: Recording payment for client:', clientId);
+      console.log('\n=== Starting Payment Recording ===');
+      console.log('Client ID:', clientId);
+      console.log('Payment Date:', paymentDate || new Date().toISOString().split('T')[0]);
 
       // Format the payment date to YYYY-MM-DD
       const formattedDate = paymentDate || new Date().toISOString().split('T')[0];
-      console.log('Client Hook: Formatted payment date:', formattedDate);
 
       const response = await fetch(`/api/clients/${clientId}/record-payment`, {
         method: 'PUT',
@@ -353,20 +354,22 @@ const useClients = () => {
         }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Client Hook: Payment recording failed:', errorData);
-        throw new Error(errorData.error || 'Failed to record payment');
-      }
-
       const result = await response.json();
       
-      if (!result.success) {
-        console.error('Client Hook: Payment recording failed:', result);
+      if (!response.ok || !result.success) {
+        console.error('\nPayment Recording Failed:', {
+          status: response.status,
+          error: result.error,
+          details: result.details
+        });
         throw new Error(result.error || 'Failed to record payment');
       }
 
-      console.log('Client Hook: Payment recorded successfully:', result);
+      console.log('\nPayment Recorded Successfully:', {
+        payment: result.payment,
+        client: result.client,
+        totalIncome: result.statistics?.totalIncome
+      });
 
       // Update the clients state with the new payment date
       setClients((prevClients) =>
@@ -380,7 +383,7 @@ const useClients = () => {
       setLoading(false);
       return result.data;
     } catch (err) {
-      console.error('Client Hook: Error recording payment:', err);
+      console.error('\nError Recording Payment:', err);
       setError(err instanceof Error ? err.message : 'Failed to record payment');
       setLoading(false);
       throw err;

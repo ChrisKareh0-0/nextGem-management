@@ -47,6 +47,12 @@ export const NAV_DATA: NavSection[] = [
         icon: Icons.ExpensesIcon,
         items: [],
       },
+      {
+        title: "Settings",
+        url: "/settings",
+        icon: Icons.Settings,
+        items: [],
+      },
       // {
       //   title: "Profile",
       //   url: "/profile",

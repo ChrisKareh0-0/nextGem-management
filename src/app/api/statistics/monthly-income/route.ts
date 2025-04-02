@@ -20,6 +20,7 @@ interface IPayment {
   _id: ObjectId;
   amount: number;
   date: Date;
+  status: string;
 }
 
 interface IClient {
@@ -50,95 +51,40 @@ export async function GET(request: Request) {
     const year = searchParams.get('year');
     const month = searchParams.get('month');
 
-    // Build query based on provided parameters
-    const query: any = {};
-    if (year) query.year = parseInt(year);
-    if (month) query.month = parseInt(month);
+    // Parse the selected year and month, or use current date
+    const selectedYear = year ? parseInt(year) : new Date().getFullYear();
+    const selectedMonth = month ? parseInt(month) : new Date().getMonth() + 1;
 
-    // Get total income from statistics collection
+    // Get total income from Statistics collection
     const statistics = await Statistics.findOne({});
     const totalIncome = statistics?.totalIncome || 0;
 
-    // Get all client quotations
-    const clients = await Client.find({}) as IClient[];
-    const totalClientQuotations = clients.reduce((sum: number, client) => sum + (client.quotationAmount || 0), 0);
-
-    // Get all payments
-    const payments = await Payment.find({}) as IPayment[];
-    const totalPayments = payments.reduce((sum: number, payment) => sum + (payment.amount || 0), 0);
-
-    // Get all expenses
+    // Get all completed payments for monthly calculations
+    const payments = await Payment.find({ status: 'completed' }) as IPayment[];
     const expenses = await Expense.find({}) as IExpense[];
-    const totalExpenses = expenses.reduce((sum: number, expense) => sum + (expense.amount || 0), 0);
 
-    // Calculate monthly statistics
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1;
+    // Calculate total expenses
+    const totalExpenses = expenses.reduce((sum, expense) => sum + (expense.amount || 0), 0);
 
-    console.log('Current Date:', {
-      now: now.toISOString(),
-      currentYear,
-      currentMonth,
-      localDate: now.toLocaleDateString(),
-      localTime: now.toLocaleTimeString()
-    });
-
-    // Get monthly payments
-    const monthlyPayments = payments.reduce((sum: number, payment: IPayment) => {
+    // Calculate monthly income (payments in selected month)
+    const monthlyIncome = payments.reduce((sum, payment) => {
       const paymentDate = new Date(payment.date);
       const paymentYear = paymentDate.getFullYear();
       const paymentMonth = paymentDate.getMonth() + 1;
       
-      console.log('Payment Date:', {
-        paymentId: payment._id,
-        paymentDate: paymentDate.toISOString(),
-        paymentYear,
-        paymentMonth,
-        amount: payment.amount
-      });
-      
-      if (paymentYear === currentYear && paymentMonth === currentMonth) {
+      if (paymentYear === selectedYear && paymentMonth === selectedMonth) {
         return sum + (payment.amount || 0);
       }
       return sum;
     }, 0);
 
-    // Get monthly client quotations
-    const monthlyClientQuotations = clients.reduce((sum: number, client: IClient) => {
-      const subscriptionDate = new Date(client.subscriptionDate);
-      const subscriptionYear = subscriptionDate.getFullYear();
-      const subscriptionMonth = subscriptionDate.getMonth() + 1;
-      
-      console.log('Subscription Date:', {
-        clientId: client._id,
-        subscriptionDate: subscriptionDate.toISOString(),
-        subscriptionYear,
-        subscriptionMonth,
-        amount: client.quotationAmount
-      });
-      
-      if (subscriptionYear === currentYear && subscriptionMonth === currentMonth) {
-        return sum + (client.quotationAmount || 0);
-      }
-      return sum;
-    }, 0);
-
-    // Get monthly expenses
-    const monthlyExpenses = expenses.reduce((sum: number, expense: IExpense) => {
+    // Calculate monthly expenses (expenses in selected month)
+    const monthlyExpenses = expenses.reduce((sum, expense) => {
       const expenseDate = new Date(expense.date);
       const expenseYear = expenseDate.getFullYear();
       const expenseMonth = expenseDate.getMonth() + 1;
       
-      console.log('Expense Date:', {
-        expenseId: expense._id,
-        expenseDate: expenseDate.toISOString(),
-        expenseYear,
-        expenseMonth,
-        amount: expense.amount
-      });
-      
-      if (expenseYear === currentYear && expenseMonth === currentMonth) {
+      if (expenseYear === selectedYear && expenseMonth === selectedMonth) {
         return sum + (expense.amount || 0);
       }
       return sum;
@@ -146,22 +92,32 @@ export async function GET(request: Request) {
 
     // Calculate differences
     const difference = totalIncome - totalExpenses;
-    const monthlyDifference = monthlyPayments - monthlyExpenses;
+    const monthlyDifference = monthlyIncome - monthlyExpenses;
 
-    // Fetch monthly income records
-    const monthlyIncome = await MonthlyIncome.find(query)
-      .sort({ year: -1, month: -1 }) as IMonthlyIncome[];
+    // Get or create monthly income record for the selected month
+    let monthlyIncomeRecord = await MonthlyIncome.findOne({
+      year: selectedYear,
+      month: selectedMonth
+    });
 
-    console.log('Monthly Income Records:', monthlyIncome.map((record: IMonthlyIncome) => ({
-      year: record.year,
-      month: record.month,
-      amount: record.amount,
-      createdAt: record.createdAt,
-      updatedAt: record.updatedAt
-    })));
+    if (!monthlyIncomeRecord) {
+      monthlyIncomeRecord = await MonthlyIncome.create({
+        year: selectedYear,
+        month: selectedMonth,
+        amount: monthlyIncome
+      });
+    } else {
+      monthlyIncomeRecord.amount = monthlyIncome;
+      await monthlyIncomeRecord.save();
+    }
 
-    // Format the response data
-    const formattedMonthlyIncome = monthlyIncome.map((record: IMonthlyIncome): FormattedMonthlyIncomeRecord => ({
+    // Get all monthly income records for the selected year
+    const monthlyIncomeRecords = await MonthlyIncome.find({
+      year: selectedYear
+    }).sort({ month: -1 });
+
+    // Format the monthly income records
+    const formattedMonthlyIncome = monthlyIncomeRecords.map((record): FormattedMonthlyIncomeRecord => ({
       _id: record._id.toString(),
       year: record.year,
       month: record.month,
@@ -170,45 +126,40 @@ export async function GET(request: Request) {
       updatedAt: record.updatedAt.toISOString()
     }));
 
-    // If no records found for current month, create a placeholder
-    const hasCurrentMonth = formattedMonthlyIncome.some(
-      (record: FormattedMonthlyIncomeRecord) => record.year === currentYear && record.month === currentMonth
-    );
-
-    if (!hasCurrentMonth) {
-      formattedMonthlyIncome.unshift({
-        _id: new ObjectId().toString(),
-        year: currentYear,
-        month: currentMonth,
-        amount: monthlyPayments, // Set amount to current month's payments
-        createdAt: now.toISOString(),
-        updatedAt: now.toISOString()
-      });
-    }
+    // Log the calculations for debugging
+    console.log('Statistics Calculation:', {
+      selectedYear,
+      selectedMonth,
+      totalIncome,
+      totalExpenses,
+      monthlyIncome,
+      monthlyExpenses,
+      difference,
+      monthlyDifference,
+      paymentCount: payments.length,
+      expenseCount: expenses.length
+    });
 
     return NextResponse.json({
       success: true,
       data: {
         monthlyIncome: formattedMonthlyIncome,
         totalIncome,
-        totalPayments,
-        totalClientQuotations,
         totalExpenses,
-        monthlyPayments,
-        monthlyClientQuotations,
+        monthlyIncomeAmount: monthlyIncome,
         monthlyExpenses,
         difference,
         monthlyDifference,
-        selectedMonth: currentMonth,
-        selectedYear: currentYear
+        selectedMonth,
+        selectedYear
       }
     });
   } catch (error) {
-    console.error('Error fetching monthly income:', error);
+    console.error('Error calculating statistics:', error);
     return NextResponse.json(
       {
         success: false,
-        error: 'Failed to fetch monthly income',
+        error: 'Failed to calculate statistics',
         details: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }
