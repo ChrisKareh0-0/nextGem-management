@@ -6,10 +6,15 @@ import ClientModel from '@/models/Client';
 export async function GET() {
   try {
     console.log('API: Attempting to connect to MongoDB...');
-    await dbConnect();
+    const { db } = await dbConnect();
     console.log('API: Connected to MongoDB, fetching clients...');
     
-    const clients = await ClientModel.find({}).sort({ createdAt: -1 });
+    // Use lean() for better performance
+    const clients = await ClientModel.find({})
+      .sort({ createdAt: -1 })
+      .lean()
+      .exec();
+      
     console.log(`API: Successfully retrieved ${clients.length} clients`);
     
     return NextResponse.json({ success: true, data: clients });
@@ -20,6 +25,11 @@ export async function GET() {
     let errorMessage = 'Error fetching clients';
     if (error instanceof Error) {
       errorMessage = `${errorMessage}: ${error.message}`;
+      console.error('API Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
     }
     
     return NextResponse.json(

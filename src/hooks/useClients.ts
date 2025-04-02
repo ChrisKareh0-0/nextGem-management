@@ -337,31 +337,46 @@ const useClients = () => {
   const recordPayment = async (clientId: string, paymentDate?: string) => {
     try {
       setLoading(true);
-      console.log('Client Hook: Recording payment for client with ID:', clientId);
-      
+      console.log('Client Hook: Recording payment for client:', clientId);
+
+      // Format the payment date to YYYY-MM-DD
+      const formattedDate = paymentDate || new Date().toISOString().split('T')[0];
+      console.log('Client Hook: Formatted payment date:', formattedDate);
+
       const response = await fetch(`/api/clients/${clientId}/record-payment`, {
-        method: 'POST',
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ paymentDate }),
+        body: JSON.stringify({
+          paymentDate: formattedDate
+        }),
       });
-      
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Client Hook: Payment recording failed:', errorData);
+        throw new Error(errorData.error || 'Failed to record payment');
+      }
+
       const result = await response.json();
       
       if (!result.success) {
-        const errorMessage = result.error || 'Failed to record payment';
-        console.error('Client Hook: API error recording payment:', errorMessage, result.details || '');
-        throw new Error(errorMessage);
+        console.error('Client Hook: Payment recording failed:', result);
+        throw new Error(result.error || 'Failed to record payment');
       }
-      
-      console.log('Client Hook: Payment recorded successfully');
+
+      console.log('Client Hook: Payment recorded successfully:', result);
+
+      // Update the clients state with the new payment date
       setClients((prevClients) =>
         prevClients.map((client) =>
-          client._id === clientId ? result.data : client
+          client._id === clientId
+            ? { ...client, lastPaymentDate: formattedDate }
+            : client
         )
       );
-      
+
       setLoading(false);
       return result.data;
     } catch (err) {

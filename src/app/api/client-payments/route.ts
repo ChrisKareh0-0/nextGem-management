@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import ClientPayment from '@/models/ClientPayment';
+import Client from '@/models/Client';
 
 export async function GET(request: Request) {
   try {
@@ -24,7 +25,10 @@ export async function GET(request: Request) {
       };
     }
 
+    console.log('Fetching client payments with query:', JSON.stringify(query, null, 2));
     const payments = await ClientPayment.find(query).sort({ date: -1 });
+    console.log('Found payments:', JSON.stringify(payments, null, 2));
+    
     return NextResponse.json(payments);
   } catch (error) {
     console.error('Error fetching client payments:', error);
@@ -40,22 +44,58 @@ export async function POST(request: Request) {
     await dbConnect();
     
     const body = await request.json();
-    const { clientName, amount, date, description, status } = body;
+    console.log('Received payment request body:', body);
+    const { clientName, amount, date, description, status, clientId } = body;
 
+    // If clientId is provided, this is a payment from the clients page
+    if (clientId) {
+      console.log('Creating payment from client ID:', clientId);
+      
+      // Fetch client details directly from the database
+      const client = await Client.findById(clientId);
+      console.log('Found client:', client);
+      
+      if (!client) {
+        console.error('Client not found for ID:', clientId);
+        throw new Error('Client not found');
+      }
+
+      // Create payment record
+      const paymentData = {
+        clientName: client.companyName,
+        amount: client.quotationAmount,
+        date: new Date(date),
+        description: `Payment for ${client.companyName}`,
+        status: 'completed',
+      };
+      console.log('Creating payment with data:', paymentData);
+      
+      const payment = await ClientPayment.create(paymentData);
+      console.log('Created payment:', payment);
+
+      return NextResponse.json(payment, { status: 201 });
+    }
+
+    // Regular payment creation
     if (!clientName || !amount || !date) {
+      console.error('Missing required fields:', { clientName, amount, date });
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       );
     }
 
-    const payment = await ClientPayment.create({
+    const paymentData = {
       clientName,
       amount: parseFloat(amount),
       date: new Date(date),
       description: description || '',
       status: status || 'completed',
-    });
+    };
+    console.log('Creating regular payment with data:', paymentData);
+    
+    const payment = await ClientPayment.create(paymentData);
+    console.log('Created payment:', payment);
 
     return NextResponse.json(payment, { status: 201 });
   } catch (error) {

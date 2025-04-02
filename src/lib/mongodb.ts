@@ -1,47 +1,66 @@
 import mongoose from 'mongoose';
 
-// Get MongoDB URI from environment variables with explicit logging
-const MONGODB_URI = process.env.MONGODB_URI;
-
-// Verify MONGODB_URI is set
-if (!MONGODB_URI) {
-  console.error('MONGODB_URI is not defined in environment variables!');
-  throw new Error(
-    'Please define the MONGODB_URI environment variable inside .env.local'
-  );
+if (!process.env.MONGODB_URI) {
+  throw new Error('Please add your Mongo URI to .env.local');
 }
 
-/**
- * Global is used here to maintain a cached connection across hot reloads
- * in development. This prevents connections growing exponentially
- * during API Route usage.
- */
-let isConnected = false;
+const uri = process.env.MONGODB_URI;
+const options = {
+  serverSelectionTimeoutMS: 30000,
+  socketTimeoutMS: 45000,
+  connectTimeoutMS: 30000,
+  maxPoolSize: 10,
+  minPoolSize: 5,
+  retryWrites: true,
+  retryReads: true,
+  w: 'majority' as const,
+  heartbeatFrequencyMS: 10000,
+  family: 4,
+};
 
-export const dbConnect = async () => {
-  if (isConnected) {
-    return true;
+interface Cached {
+  conn: typeof mongoose | null;
+  promise: Promise<typeof mongoose> | null;
+}
+
+declare global {
+  var mongoose: Cached;
+}
+
+let cached: Cached = global.mongoose || { conn: null, promise: null };
+
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
+}
+
+async function dbConnect() {
+  if (cached.conn) {
+    return cached.conn;
+  }
+
+  if (!cached.promise) {
+    const opts = {
+      bufferCommands: false,
+    };
+
+    cached.promise = mongoose.connect(uri, { ...options, ...opts })
+      .then((mongoose) => {
+        console.log('MongoDB connected successfully');
+        return mongoose;
+      })
+      .catch((error) => {
+        console.error('MongoDB connection error:', error);
+        throw error;
+      });
   }
 
   try {
-    // Log the connection string (with password obscured for security)
-    const sanitizedUri = MONGODB_URI.replace(
-      /mongodb(\+srv)?:\/\/([^:]+):([^@]+)@/,
-      'mongodb$1://$2:****@'
-    );
-    console.log(`Connecting to MongoDB at: ${sanitizedUri}`);
-    
-    await mongoose.connect(MONGODB_URI, {
-      // Add MongoDB connection options if needed
-    });
-    
-    isConnected = true;
-    console.log('MongoDB connected successfully');
-    return true;
-  } catch (error) {
-    console.error('Error connecting to MongoDB:', error);
-    throw error; // Re-throw the error so we can handle it in the API routes
+    cached.conn = await cached.promise;
+    return cached.conn;
+  } catch (e) {
+    cached.promise = null;
+    throw e;
   }
-};
+}
 
 export default dbConnect; 

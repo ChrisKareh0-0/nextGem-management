@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Client } from '@/types/client';
 import {
   Table,
@@ -8,9 +8,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { TrashIcon, PencilSquareIcon } from '@/assets/icons';
+import { TrashIcon, PencilSquareIcon, CurrencyDollarIcon, XCircleIcon } from '@/assets/icons/index';
 import Link from 'next/link';
-import { XCircleIcon } from '@/assets/icons/index';
+import { useRouter } from 'next/navigation';
 
 interface ClientsTableProps {
   clients: Client[];
@@ -21,11 +21,19 @@ interface ClientsTableProps {
 }
 
 export function ClientsTable({ clients, onDelete, onEdit, onEndSubscription, onRecordPayment }: ClientsTableProps) {
+  const router = useRouter();
+  const [currentDate, setCurrentDate] = useState<Date | null>(null);
+
+  useEffect(() => {
+    setCurrentDate(new Date());
+  }, []);
+
   const formatPaymentDueDate = (dueDate: { day: number; month?: number }) => {
-    const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-    const currentDay = today.getDate();
+    if (!currentDate || !dueDate) return '-';
+    
+    const currentMonth = currentDate.getMonth();
+    const currentYear = currentDate.getFullYear();
+    const currentDay = currentDate.getDate();
     
     // Calculate the next due date
     let dueMonth = currentMonth; // 0-indexed
@@ -40,20 +48,15 @@ export function ClientsTable({ clients, onDelete, onEdit, onEndSubscription, onR
       }
     }
     
-    const dueDateTime = new Date(dueYear, dueMonth, dueDate.day);
-    
     // Format date manually since we don't have date-fns
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return `${dueDate.day} ${monthNames[dueMonth]} ${dueYear}`;
   };
 
   const isPaymentOverdue = (dueDate: { day: number; month?: number }) => {
-    if (!dueDate) return false;
+    if (!currentDate || !dueDate) return false;
     
-    const today = new Date();
-    const currentDay = today.getDate();
-    const currentMonth = today.getMonth(); // 0-indexed
-    const currentYear = today.getFullYear();
+    const currentDay = currentDate.getDate();
     
     // For recurring monthly payments, we need to check if the due date has passed this month
     return dueDate.day < currentDay;
@@ -68,7 +71,7 @@ export function ClientsTable({ clients, onDelete, onEdit, onEndSubscription, onR
       return dateString;
     }
     
-    // Format date manually
+    // Format date manually to avoid locale issues
     const day = date.getDate().toString().padStart(2, '0');
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
     const year = date.getFullYear();
@@ -80,7 +83,13 @@ export function ClientsTable({ clients, onDelete, onEdit, onEndSubscription, onR
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(amount);
+  };
+
+  const handleRowClick = (clientId: string) => {
+    router.push(`/clients/${clientId}/payments`);
   };
 
   return (
@@ -182,7 +191,11 @@ export function ClientsTable({ clients, onDelete, onEdit, onEndSubscription, onR
 
           <TableBody>
             {clients.map((client) => (
-              <TableRow key={client._id} className="border-[#eee] dark:border-dark-3">
+              <TableRow 
+                key={client._id} 
+                className="border-[#eee] dark:border-dark-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-2"
+                onClick={() => handleRowClick(client._id)}
+              >
                 <TableCell>
                   <h5 className="text-dark dark:text-white">{client.companyName}</h5>
                 </TableCell>
@@ -239,42 +252,32 @@ export function ClientsTable({ clients, onDelete, onEdit, onEndSubscription, onR
                   </p>
                 </TableCell>
                 <TableCell className="text-right">
-                  <div className="flex items-center justify-end gap-x-3.5">
+                  <div className="flex items-center space-x-3" onClick={(e) => e.stopPropagation()}>
+                    {client.subscriptionStatus === 'active' && (
+                      <>
+                        <button 
+                          className="hover:text-primary"
+                          onClick={() => onRecordPayment?.(client._id)}
+                        >
+                          <span className="sr-only">Record Payment</span>
+                          <CurrencyDollarIcon />
+                        </button>
+                        <button 
+                          className="hover:text-primary"
+                          onClick={() => onEndSubscription(client._id)}
+                        >
+                          <span className="sr-only">End Subscription</span>
+                          <XCircleIcon />
+                        </button>
+                      </>
+                    )}
                     <button 
                       className="hover:text-primary"
                       onClick={() => onEdit(client)}
                     >
                       <span className="sr-only">Edit Client</span>
-                      <PencilSquareIcon className="h-5 w-5" />
+                      <PencilSquareIcon />
                     </button>
-
-                    {client.subscriptionStatus === 'active' && (
-                      <>
-                        {onRecordPayment && (
-                          <button 
-                            className="hover:text-green-500"
-                            onClick={() => onRecordPayment(client._id)}
-                            title="Record Payment"
-                          >
-                            <span className="sr-only">Record Payment</span>
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
-                              <path d="M4.5 3.75a3 3 0 00-3 3v.75h21v-.75a3 3 0 00-3-3h-15z" />
-                              <path fillRule="evenodd" d="M22.5 9.75h-21v7.5a3 3 0 003 3h15a3 3 0 003-3v-7.5zm-18 3.75a.75.75 0 01.75-.75h6a.75.75 0 010 1.5h-6a.75.75 0 01-.75-.75zm.75 2.25a.75.75 0 000 1.5h3a.75.75 0 000-1.5h-3z" clipRule="evenodd" />
-                            </svg>
-                          </button>
-                        )}
-                        
-                        <button 
-                          className="hover:text-red-500"
-                          onClick={() => onEndSubscription(client._id)}
-                          title="End Subscription"
-                        >
-                          <span className="sr-only">End Subscription</span>
-                          <XCircleIcon className="h-5 w-5" />
-                        </button>
-                      </>
-                    )}
-
                     <button 
                       className="hover:text-primary"
                       onClick={() => onDelete(client._id)}

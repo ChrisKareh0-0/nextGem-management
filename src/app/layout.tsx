@@ -39,7 +39,7 @@ export default function RootLayout({ children }: PropsWithChildren) {
           rel="stylesheet"
         />
       </head>
-      <body className="dark:bg-boxdark-2 dark:text-bodydark">
+      <body className="dark:bg-boxdark-2 dark:text-bodydark" suppressHydrationWarning>
         <Providers>
           <NextTopLoader showSpinner={false} />
           <ClientLayout>{children}</ClientLayout>

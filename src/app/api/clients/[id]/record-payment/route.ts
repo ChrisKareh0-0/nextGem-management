@@ -1,54 +1,159 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
-import ClientModel from '@/models/Client';
+import { ObjectId } from 'mongodb';
+import Client from '@/models/Client';
+import Payment from '@/models/Payment';
+import MonthlyIncome from '@/models/MonthlyIncome';
+import Statistics from '@/models/Statistics';
 
 // POST handler to record a payment for a client
-export async function POST(
+export async function PUT(
   request: Request,
-  context: { params: { id: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = context.params;
-    const { paymentDate } = await request.json();
-    
-    console.log(`API: Recording payment for client with ID: ${id}, date: ${paymentDate}`);
-    
     await dbConnect();
-    
-    // Use the provided payment date or default to today
-    const paymentDateToUse = paymentDate || new Date().toISOString().split('T')[0];
-    
-    // Update the client's last payment date
-    const client = await ClientModel.findByIdAndUpdate(
-      id,
-      { lastPaymentDate: paymentDateToUse },
-      { new: true, runValidators: true }
-    );
-    
+    const clientId = params.id;
+    const { paymentDate } = await request.json();
+
+    console.log('Received payment request:', {
+      clientId,
+      paymentDate,
+      params
+    });
+
+    // Validate client ID
+    if (!ObjectId.isValid(clientId)) {
+      console.error('Invalid client ID:', clientId);
+      return NextResponse.json(
+        { success: false, error: 'Invalid client ID' },
+        { status: 400 }
+      );
+    }
+
+    // Validate payment date
+    if (!paymentDate) {
+      console.error('Missing payment date');
+      return NextResponse.json(
+        { success: false, error: 'Payment date is required' },
+        { status: 400 }
+      );
+    }
+
+    // Get client details to get the quotation amount
+    const client = await Client.findById(clientId);
+    console.log('Found client:', client);
+
     if (!client) {
-      console.log(`API: Client with ID ${id} not found for recording payment`);
+      console.error('Client not found:', clientId);
       return NextResponse.json(
         { success: false, error: 'Client not found' },
         { status: 404 }
       );
     }
-    
-    console.log(`API: Successfully recorded payment for client: ${id}`);
-    return NextResponse.json({ success: true, data: client });
-  } catch (error) {
-    console.error('API Error recording payment:', error);
-    
-    // Provide more detailed error information
-    let errorMessage = 'Error recording payment';
-    if (error instanceof Error) {
-      errorMessage = `${errorMessage}: ${error.message}`;
+
+    // Parse the payment date and set it to the start of the day in local timezone
+    const paymentDateObj = new Date(paymentDate);
+    if (isNaN(paymentDateObj.getTime())) {
+      console.error('Invalid payment date format:', paymentDate);
+      return NextResponse.json(
+        { success: false, error: 'Invalid payment date format' },
+        { status: 400 }
+      );
     }
-    
+
+    paymentDateObj.setHours(0, 0, 0, 0);
+
+    // Get the year and month from the payment date
+    const year = paymentDateObj.getFullYear();
+    const month = paymentDateObj.getMonth() + 1;
+
+    console.log('Processing payment:', {
+      clientId,
+      paymentDate: paymentDateObj.toISOString(),
+      year,
+      month,
+      amount: client.quotationAmount
+    });
+
+    // Create new payment record
+    const payment = await Payment.create({
+      clientId: new ObjectId(clientId),
+      amount: client.quotationAmount,
+      date: paymentDateObj,
+      status: 'completed'
+    });
+
+    console.log('Created payment record:', payment);
+
+    // Update client's payment due date to next month
+    const nextPaymentDate = new Date(paymentDateObj);
+    nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
+
+    // First, check if a monthly income record exists for this month
+    const existingMonthlyIncome = await MonthlyIncome.findOne({
+      year,
+      month
+    });
+
+    console.log('Existing monthly income:', existingMonthlyIncome);
+
+    if (existingMonthlyIncome) {
+      // Update existing monthly income record
+      existingMonthlyIncome.amount += client.quotationAmount;
+      await existingMonthlyIncome.save();
+      console.log('Updated monthly income:', existingMonthlyIncome);
+    } else {
+      // Create new monthly income record
+      const newMonthlyIncome = await MonthlyIncome.create({
+        year,
+        month,
+        amount: client.quotationAmount
+      });
+      console.log('Created new monthly income:', newMonthlyIncome);
+    }
+
+    // Update total income in statistics collection
+    const statistics = await Statistics.findOne({});
+    if (statistics) {
+      statistics.totalIncome += client.quotationAmount;
+      await statistics.save();
+      console.log('Updated statistics:', statistics);
+    } else {
+      const newStatistics = await Statistics.create({
+        totalIncome: client.quotationAmount
+      });
+      console.log('Created new statistics:', newStatistics);
+    }
+
+    // Update client's payment due date and last payment date
+    client.paymentDueDate = {
+      day: nextPaymentDate.getDate(),
+      month: nextPaymentDate.getMonth() + 1
+    };
+    client.lastPaymentDate = paymentDateObj;
+    await client.save();
+    console.log('Updated client:', client);
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        _id: payment._id,
+        clientId: payment.clientId.toString(),
+        amount: payment.amount,
+        date: payment.date,
+        status: payment.status,
+        createdAt: payment.createdAt,
+        updatedAt: payment.updatedAt
+      }
+    });
+  } catch (error) {
+    console.error('Error recording payment:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: errorMessage,
-        details: error instanceof Error ? error.stack : String(error)
+      {
+        success: false,
+        error: 'Failed to record payment',
+        details: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }
     );
